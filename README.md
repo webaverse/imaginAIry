@@ -1,13 +1,25 @@
-# ImaginAIry 🤖🧠
+# Webaverse version of ImaginAIry (w/ FastAPI)🤖🧠
 [![Downloads](https://pepy.tech/badge/imaginairy)](https://pepy.tech/project/imaginairy)
 [![image](https://img.shields.io/pypi/v/imaginairy.svg)](https://pypi.org/project/imaginairy/)
 [![image](https://img.shields.io/badge/license-MIT-green)](https://github.com/brycedrennan/imaginAIry/blob/master/LICENSE/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![Python Checks](https://github.com/brycedrennan/imaginAIry/actions/workflows/ci.yaml/badge.svg)](https://github.com/brycedrennan/imaginAIry/actions/workflows/ci.yaml)
-
 AI imagined images. Pythonic generation of stable diffusion images.
 
 "just works" on Linux and macOS(M1) (and maybe windows?).
+
+## API Usage
+The documentation can be found under `http://216.153.51.63/docs`
+The parameters in the request body are based as the CLI parameters.
+E.g.
+`imagine --model SD-2.1 "a forest"` is the same as `POST /imagine` with the body
+```json
+{
+  "prompt_texts": ["a forest"],
+  "model_weights_path": "SD-2.1"
+}
+```
+
 
 ## Examples
 ```bash
