@@ -21,8 +21,8 @@ E.g.
 ```
 returns a response with key: base64 image
 Common keys are:
-"generated" -> the generated image (or edited image when performing edit in place)
-"upscaled" -> when upscaling an image
+- "generated" -> the generated image (or edited image when performing edit in place)
+- "upscaled" -> when upscaling an image
 
 
 
