@@ -18,6 +18,11 @@ E.g.
   "prompt_texts": ["a forest"],
   "model_weights_path": "SD-2.1"
 }
+
+returns a response with key: base64 image
+Common keys are:
+"generated" -> the generated image (or edited image when performing edit in place)
+"upscaled" -> when upscaling an image
 ```
 
 
