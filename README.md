@@ -9,7 +9,7 @@ AI imagined images. Pythonic generation of stable diffusion images.
 "just works" on Linux and macOS(M1) (and maybe windows?).
 
 ## API Usage
-The documentation can be found under `http://216.153.51.63/docs`
+The documentation can be found under `url/docs`
 The parameters in the request body are based as the CLI parameters.
 E.g.
 `imagine --model SD-2.1 "a forest"` is the same as `POST /imagine` with the body
