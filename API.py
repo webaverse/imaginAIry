@@ -6,7 +6,7 @@ from typing import List, Optional
 from functools import partial
 
 from PIL import Image, ImageDraw
-from fastapi import FastAPI, UploadFile, Form
+from fastapi import FastAPI, UploadFile, Form, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -22,7 +22,21 @@ from imaginairy.schema import ImaginePrompt
 
 configure_logging("ERROR")
 
-app = FastAPI(debug=True)
+description = """
+Imaginairy API allows you to access the functionality of imaiginary from a web browser or other client.
+
+## Usage
+There are three endpoints:
+- `/imagine` -> generates an image/ same functionality as the imagine command from the original repo
+- `/edit` -> edits an image using instructPix2Pix/ same functionality as the edit command from the original repo
+- `/describe` -> uses the CLIP model to describe an image/ same functionality as the describe command from the original repo
+
+### Notes
+- When using multiple prompts, the docs page automatically concatenates them creating unwanted behaviour. To avoid this, use the `curl` command or another client and add a seperate form for each prompt, e.g.`-F 'prompt_texts=prompt1' -F 'prompt_texts=prompt2'`. 
+- Both the **/imagine** and **/edit** endpoints support responding with a single image or multiple images. When returning one image, it is sent as a byte stream, when returning multiple images, it is sent as a zip file.
+"""
+
+app = FastAPI(title="ImaginAIry API", description=description)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -221,35 +235,49 @@ def gen(prompt_texts: List[str] = ["a photo of a cat"],
 
 
 @app.post("/imagine")
-def imagine_call(prompt_texts: List[str] = Form(...),
-                 negative_prompt: str = Form(config.DEFAULT_NEGATIVE_PROMPT),
-                 prompt_strength: float = Form(7.5),
+def imagine_call(prompt_texts: List[str] = Form(...,
+                                                description="List of prompts to use for editing, when cURL is used, add a new form for every prompt i.e. `-F 'prompt_texts=prompt1' -F 'prompt_texts=prompt2'`"),
+                 negative_prompt: str = Form(config.DEFAULT_NEGATIVE_PROMPT,
+                                             description="Negative prompt, making things less likely to appear in the image"),
+                 prompt_strength: float = Form(7.5,
+                                               description="Strength of the prompt, higher values make the prompt have more effect, default is 7.5"),
                  init_image: Optional[UploadFile] = None,
-                 init_image_b64: Optional[str] = Form(None),
-                 init_image_strength: Optional[float] = Form(None),
-                 repeats: int = Form(1),
-                 height: int = Form(512),
-                 width: int = Form(512),
-                 steps: Optional[int] = Form(None),
-                 seed: Optional[int] = Form(None),
-                 upscale: bool = Form(False),
-                 fix_faces: bool = Form(False),
-                 fix_faces_fidelity: float = Form(0.5),
-                 sampler_type: str = Form(config.DEFAULT_SAMPLER),
-                 tile: bool = Form(False),
-                 tile_x: bool = Form(False),
-                 tile_y: bool = Form(False),
+                 init_image_b64: Optional[str] = Form(None, description="Base64 encoded image to use as initial image"),
+                 init_image_strength: Optional[float] = Form(None,
+                                                             description="Strength of the initial image, higher values make the initial image have more effect, default is 0.5"),
+                 repeats: int = Form(1, description="Number of times to repeat the prompt, default is 1"),
+                 height: int = Form(512, description="Height of the image, default is 512"),
+                 width: int = Form(512, description="Width of the image, default is 512"),
+                 steps: Optional[int] = Form(None, description="Number of diffusion steps"),
+                 seed: Optional[int] = Form(None, description="Seed for the random number generator"),
+                 upscale: bool = Form(False, description="Upscale the image by 2x"),
+                 fix_faces: bool = Form(False, description="Fix faces in the image"),
+                 fix_faces_fidelity: float = Form(0.5,
+                                                  description="Fidelity of the face fixer, higher values make the face fixer more accurate, default is 0.5"),
+                 sampler_type: str = Form(config.DEFAULT_SAMPLER,
+                                          description="Sampler to use for the image generation, default is `k_dpmpp_2m`, other options are: [`plms, ddim, k_dpm_fast, k_dpm_adaptive, k_lms, k_dpm_2, k_dpm_2_a, k_dpmpp_2m, k_dpmpp_2s_a, k_euler, k_euler_a, k_heun`]"),
+                 tile: bool = Form(False, description="Make image tilable in both x and y directions"),
+                 tile_x: bool = Form(False, description="Make image tilable in x direction"),
+                 tile_y: bool = Form(False, description="Make image tilable in y direction"),
                  mask_image: Optional[UploadFile] = None,
-                 mask_image_b64: Optional[str] = Form(None),
-                 mask_prompt: Optional[str] = Form(None),
-                 mask_mode: str = Form("replace"),
-                 outpaint: Optional[str] = Form(None),
-                 caption: bool = Form(False),
-                 precision: str = Form("autocast"),
-                 model_weights_path: str = Form(config.DEFAULT_MODEL),
-                 model_config_path: Optional[str] = Form(None),
-                 arg_schedules: Optional[str] = Form(None),
-                 collect_results: bool = Form(False)):
+                 mask_image_b64: Optional[str] = Form(None, description="Base64 encoded image to use as mask image"),
+                 mask_prompt: Optional[str] = Form(None, description="Prompt to use to define what should be masked"),
+                 mask_mode: str = Form("replace",
+                                       description="Mode to use for the mask, default is `replace`, other options is `keep`"),
+                 outpaint: Optional[str] = Form(None,
+                                                description="Specify in what directions to expand the image. Values will be snapped such that output image size is multiples of 8. Example: up10,down300,left50,right50/ u10,d300,l50,r50/ all200/ a200  "),
+                 caption: bool = Form(False, description="Add caption to the image, added to the bottom of the image"),
+                 precision: str = Form("autocast",
+                                       description="Precision to use for the image generation, default is `autocast`, other option is `full`]"),
+                 model_weights_path: str = Form(config.DEFAULT_MODEL,
+                                                description="Model weights to use, default is `SD-1.5`, options available out of the box: `SD-1.4, SD-1.5-inpaint, SD-2.0, SD-2.0-inpaint, SD-2.0-v, SD-2.0-depth, SD-2.1, SD-2.1-inpaint, SD-2.1-v, openjourney-v1, openjourney-v2`"),
+                 model_config_path: Optional[str] = Form(None,
+                                                         description="Model config file to use. If a model name is specified, the appropriate config will be used. (only necessary when using a custom model)"),
+                 arg_schedules: Optional[str] = Form(None,
+                                                     description="Schedule how an argument should change over several generations. Format: `arg_name[start:end:increment]` or `arg_name[val,val2,val3]`"),
+                 collect_results: bool = Form(False,
+                                              description="Based on the query parameters `imaginary` stores multiple images in the result, normally only the final result is send in the response, using this all internal images (if any) are stored in the result and send as a zip file"),
+                 ):
     # if init_image is not none load image an read to PIL file
     if init_image is not None:
         buff = BytesIO()
@@ -302,34 +330,47 @@ def imagine_call(prompt_texts: List[str] = Form(...),
 
 
 @app.post("/edit")
-def edit_options(prompt_texts: List[str] = Form(...),
-                 negative_prompt: str = Form(config.DEFAULT_NEGATIVE_PROMPT),
-                 prompt_strength: float = Form(7.5),
-                 init_image: Optional[UploadFile] = None,
-                 init_image_b64: Optional[str] = Form(None),
-                 init_image_strength: Optional[float] = Form(None),
-                 repeats: int = Form(1),
-                 height: int = Form(512),
-                 width: int = Form(512),
-                 steps: Optional[int] = Form(None),
-                 seed: Optional[int] = Form(None),
-                 upscale: bool = Form(False),
-                 fix_faces: bool = Form(False),
-                 fix_faces_fidelity: float = Form(0.5),
-                 sampler_type: str = Form(config.DEFAULT_SAMPLER),
-                 tile: bool = Form(False),
-                 tile_x: bool = Form(False),
-                 tile_y: bool = Form(False),
+def edit_options(prompt_texts: List[str] = Form(...,
+                                                description="List of prompts to use for editing, when cURL is used, add new form for every prompt i.e. `-F 'prompt_texts=prompt1' -F 'prompt_texts=prompt2'`"),
+                 negative_prompt: str = Form(config.DEFAULT_NEGATIVE_PROMPT,
+                                             description="Negative prompt, making things less likely to appear in the image"),
+                 prompt_strength: float = Form(7.5,
+                                               description="Strength of the prompt, higher values make the prompt have more effect, default is 7.5"),
+                 init_image: Optional[UploadFile] = File(..., description="Image to use as initial image"),
+                 init_image_b64: Optional[str] = Form(None, description="Base64 encoded image to use as initial image"),
+                 init_image_strength: Optional[float] = Form(None,
+                                                             description="Strength of the initial image, higher values make the initial image have more effect, default is 0.5"),
+                 repeats: int = Form(1, description="Number of times to repeat the prompt, default is 1"),
+                 height: int = Form(512, description="Height of the image, default is 512"),
+                 width: int = Form(512, description="Width of the image, default is 512"),
+                 steps: Optional[int] = Form(None, description="Number of diffusion steps"),
+                 seed: Optional[int] = Form(None, description="Seed for the random number generator"),
+                 upscale: bool = Form(False, description="Upscale the image by 2x"),
+                 fix_faces: bool = Form(False, description="Fix faces in the image"),
+                 fix_faces_fidelity: float = Form(0.5,
+                                                  description="Fidelity of the face fixer, higher values make the face fixer more accurate, default is 0.5"),
+                 sampler_type: str = Form(config.DEFAULT_SAMPLER,
+                                          description="Sampler to use for the image generation, default is `k_dpmpp_2m`, other options are: [`plms, ddim, k_dpm_fast, k_dpm_adaptive, k_lms, k_dpm_2, k_dpm_2_a, k_dpmpp_2m, k_dpmpp_2s_a, k_euler, k_euler_a, k_heun`]"),
+                 tile: bool = Form(False, description="Make image tilable in both x and y directions"),
+                 tile_x: bool = Form(False, description="Make image tilable in x direction"),
+                 tile_y: bool = Form(False, description="Make image tilable in y direction"),
                  mask_image: Optional[UploadFile] = None,
-                 mask_image_b64: Optional[str] = Form(None),
-                 mask_prompt: Optional[str] = Form(None),
-                 mask_mode: str = Form("replace"),
-                 outpaint: Optional[str] = Form(None),
-                 caption: bool = Form(False),
-                 precision: str = Form("autocast"),
-                 model_config_path: Optional[str] = Form(None),
-                 arg_schedules: Optional[str] = Form(None),
-                 collect_results: bool = Form(False)):
+                 mask_image_b64: Optional[str] = Form(None, description="Base64 encoded image to use as mask image"),
+                 mask_prompt: Optional[str] = Form(None, description="Prompt to use to define what should be masked"),
+                 mask_mode: str = Form("replace",
+                                       description="Mode to use for the mask, default is `replace`, other options is `keep`"),
+                 outpaint: Optional[str] = Form(None,
+                                                description="Specify in what directions to expand the image. Values will be snapped such that output image size is multiples of 8. Example: up10,down300,left50,right50/ u10,d300,l50,r50/ all200/ a200  "),
+                 caption: bool = Form(False, description="Add caption to the image, added to the bottom of the image"),
+                 precision: str = Form("autocast",
+                                       description="Precision to use for the image generation, default is `autocast`, other option is `full`]"),
+                 model_config_path: Optional[str] = Form(None,
+                                                         description="Model config file to use. If a model name is specified, the appropriate config will be used. (only necessary when using a custom model)"),
+                 arg_schedules: Optional[str] = Form(None,
+                                                     description="Schedule how an argument should change over several generations. Format: `arg_name[start:end:increment]` or `arg_name[val,val2,val3]`"),
+                 collect_results: bool = Form(False,
+                                              description="Based on the query parameters `imaginary` stores multiple images in the result, normally only the final result is send in the response, using this all internal images (if any) are stored in the result and send as a zip file"),
+                 ):
     if init_image is not None:
         buff = BytesIO()
         buff.write(init_image.file.read())
