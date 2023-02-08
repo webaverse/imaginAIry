@@ -257,6 +257,12 @@ def imagine_call(prompt_texts: List[str] = Form(...),
         buff.seek(0)
         init_image = Image.open(buff)
 
+    if mask_image is not None:
+        buff = BytesIO()
+        buff.write(mask_image.file.read())
+        buff.seek(0)
+        mask_image = Image.open(buff)
+
     image_key = "generated"
     if upscale:
         image_key = "upscaled"
@@ -324,6 +330,18 @@ def edit_options(prompt_texts: List[str] = Form(...),
                  model_config_path: Optional[str] = Form(None),
                  arg_schedules: Optional[str] = Form(None),
                  collect_results: bool = Form(False)):
+    if init_image is not None:
+        buff = BytesIO()
+        buff.write(init_image.file.read())
+        buff.seek(0)
+        init_image = Image.open(buff)
+
+    if mask_image is not None:
+        buff = BytesIO()
+        buff.write(mask_image.file.read())
+        buff.seek(0)
+        mask_image = Image.open(buff)
+
     image_key = "generated"
     if upscale:
         image_key = "upscaled"
